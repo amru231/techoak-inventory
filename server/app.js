@@ -1,4 +1,4 @@
-const next = require('next');
+const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
@@ -6,50 +6,73 @@ const logger = require('morgan');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 
-const dev = process.env.NODE_ENV !== 'production';
-const nextApp = next({ dev, dir: '../' });
-const handle = nextApp.getRequestHandler();
-
+const app = express();
 const prisma = new PrismaClient();
 
-async function startServer() {
-  await nextApp.prepare();   // 🔥 VERY IMPORTANT
+/*
+|--------------------------------------------------------------------------
+| CORS Configuration
+|--------------------------------------------------------------------------
+*/
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://tech-oak.vercel.app',
+    'https://tech-oak.com',
+    // Add your Vercel production domain here later if needed
+  ],
+  credentials: true,
+}));
 
-  const app = express();
+/*
+|--------------------------------------------------------------------------
+| Middleware
+|--------------------------------------------------------------------------
+*/
+app.use(logger('dev'));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
 
-  app.use(cors({
-    origin: [
-      'http://localhost:3000',
-      'https://tech-oak.vercel.app',
-      'https://tech-oak.com',
-    ],
-    credentials: true,
-  }));
+/*
+|--------------------------------------------------------------------------
+| Prisma Injection
+|--------------------------------------------------------------------------
+*/
+app.use((req, res, next) => {
+  req.prisma = prisma;
+  next();
+});
 
-  app.use(logger('dev'));
-  app.use(express.json({ limit: '5mb' }));
-  app.use(express.urlencoded({ extended: true }));
-  app.use(cookieParser());
-  app.use(express.static(path.join(__dirname, 'public')));
+/*
+|--------------------------------------------------------------------------
+| Routes
+|--------------------------------------------------------------------------
+*/
+require('./routes/index')(app);
 
-  app.use((req, res, nextMiddleware) => {
-    req.prisma = prisma;
-    nextMiddleware();
+/*
+|--------------------------------------------------------------------------
+| 404 Handler
+|--------------------------------------------------------------------------
+*/
+app.use(function (req, res, next) {
+  next(createError(404));
+});
+
+/*
+|--------------------------------------------------------------------------
+| Error Handler
+|--------------------------------------------------------------------------
+*/
+app.use(function (err, req, res, next) {
+  console.error(err);
+
+  res.status(err.status || 500).json({
+    message: err.message,
+    error: process.env.NODE_ENV === 'development' ? err : {},
   });
+});
 
-  // API routes first
-  require('./routes/index')(app);
-
-  // Let Next handle everything else
-  app.all('*', (req, res) => {
-    return handle(req, res);
-  });
-
-  const port = process.env.PORT || 8080;
-
-  app.listen(port, () => {
-    console.log('App running on port:', port);
-  });
-}
-
-startServer();
+module.exports = app;
