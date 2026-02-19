@@ -1,3 +1,9 @@
+const next = require('next');
+
+const dev = process.env.NODE_ENV !== 'production';
+const nextApp = next({ dev, dir: '../' });
+const handle = nextApp.getRequestHandler();
+
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -35,6 +41,13 @@ app.use(function (req, res, next) {
   req.prisma = prisma
   next()
 })
+
+app.use(async (req, res, nextMiddleware) => {
+  if (req.url.startsWith('/auth') || req.url.startsWith('/user')) {
+    return nextMiddleware();
+  }
+  return handle(req, res);
+});
 
 // Routes
 require('./routes/index')(app);

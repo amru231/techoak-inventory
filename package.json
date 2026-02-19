@@ -7,7 +7,7 @@
     "server": "cd ./server && npm run dev",
     "serve": "concurrently \"npm run dev\" \"npm run server\"",
     "build": "next build",
-    "start": "npm install --prefix server && concurrently \"next start -p $PORT\" \"node server/bin/www\"",
+    "start": "npm install --prefix server && node server/bin/www",
     "lint": "next lint"
   },
   "dependencies": {
