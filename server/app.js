@@ -1,5 +1,5 @@
-const express = require('express');
 const next = require('next');
+const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
@@ -11,11 +11,11 @@ const nextApp = next({ dev, dir: '../' });
 const handle = nextApp.getRequestHandler();
 
 const prisma = new PrismaClient();
-const app = express();
 
-nextApp.prepare().then(() => {
+async function startServer() {
+  await nextApp.prepare();   // 🔥 VERY IMPORTANT
 
-  // ===== MIDDLEWARE =====
+  const app = express();
 
   app.use(cors({
     origin: [
@@ -37,14 +37,19 @@ nextApp.prepare().then(() => {
     nextMiddleware();
   });
 
-  // ===== API ROUTES =====
+  // API routes first
   require('./routes/index')(app);
 
-  // ===== NEXT HANDLER =====
+  // Let Next handle everything else
   app.all('*', (req, res) => {
     return handle(req, res);
   });
 
-});
+  const port = process.env.PORT || 8080;
 
-module.exports = app;
+  app.listen(port, () => {
+    console.log('App running on port:', port);
+  });
+}
+
+startServer();
