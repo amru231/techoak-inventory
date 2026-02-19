@@ -1,0 +1,415 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["filteredRelationCount", "fullTextSearch"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  email     String @unique
+  firstName String
+  lastName  String
+  password  String
+
+  phoneNo String?
+  avatar  String?
+
+  // true, false
+  isActive          Boolean? @default(false)
+  verificationToken String?
+  isBanned          Boolean? @default(false)
+
+  isNew Boolean? @default(true)
+  role  String?  @default("user")
+
+  // admin / sales / inventory / products / pos
+  business_role String @default("sales")
+
+  businesses  Business[] @relation(name: "admin")
+  businessIds String[]   @db.ObjectId
+
+  store   Business? @relation(name: "operation", fields: [storeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  storeId String?   @db.ObjectId
+
+  isPremium Boolean @default(false)
+
+  verifiedAt DateTime?
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  invoices Invoice[]
+
+  sales Sale[]
+}
+
+model Business {
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  name     String?
+  phone    String?
+  location String?
+  city     String?
+  state    String?
+  zip      String?
+
+  // True / False
+  status Boolean @default(true)
+
+  // True / False
+  isDefault Boolean @default(true)
+
+  admin   User   @relation(name: "admin", fields: [adminId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  adminId String @db.ObjectId
+
+  operators   User[]   @relation(name: "operation")
+  operatorIds String[] @db.ObjectId
+
+  categories Category[]
+  brands     Brand[]
+  units      Unit[]
+  variations Variation[]
+
+  suppliers Supplier[]
+  customers Customer[]
+  sales     Sale[]
+  purchase  Purchase[]
+  products  Product[]
+  taxes     Tax[]
+  expenses  Expense[]
+
+  invoices Invoice[]
+
+  // store / cantine
+  businessType String?    @default("store")
+  createdAt     DateTime? @default(now())
+  updatedAt     DateTime? @updatedAt
+}
+
+model Brand {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String?
+  description String?
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  status Boolean @default(true)
+
+  products Product[]
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Category {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String?
+  description String?
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  isSubcategory Boolean @default(false)
+
+  parent   Category? @relation(name: "parent", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parentId String?   @db.ObjectId
+
+  children Category[] @relation(name: "parent")
+
+  status Boolean @default(true)
+
+  products Product[]
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Unit {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  name      String?
+  shortName String?
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  status Boolean @default(true)
+
+  products Product[]
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Variation {
+  id     String   @id @default(auto()) @map("_id") @db.ObjectId
+  name   String?
+  values String[]
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  status Boolean @default(true)
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Supplier {
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
+  prefix            String?
+  firstName         String?
+  middleName        String?
+  lastName          String?
+  mobile            String?
+  alternativeMobile String?
+  landLine          String?
+  email             String?
+  taxNumber         String?
+  addressOne        String?
+  addressTwo        String?
+  city              String?
+  state             String?
+  country           String?
+  zipCode           String?
+  purchases         Purchase[]
+
+  status Boolean @default(true)
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  invoices Invoice[]
+
+  description String?
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Customer {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  prefix            String?
+  firstName         String?
+  middleName        String?
+  lastName          String?
+  mobile            String?
+  alternativeMobile String?
+  landLine          String?
+  email             String?
+  taxNumber         String?
+  addressOne        String?
+  addressTwo        String?
+  city              String?
+  state             String?
+  country           String?
+  zipCode           String?
+  sales             Sale[]
+
+  status Boolean @default(true)
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  invoices Invoice[]
+
+  description String?
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Sale {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId String  @db.ObjectId
+
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId String   @db.ObjectId
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId String  @db.ObjectId
+
+  user   User? @relation(fields: [userId], references: [id])
+  userId String?   @db.ObjectId
+
+  quantity  Int
+  unitPrice Float
+  total     Float
+
+  isReturn  Boolean @default(false)
+
+  tax   Tax?    @relation(fields: [taxId], references: [id])
+  taxId String? @db.ObjectId
+
+  taxRate Float @default(0)
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Purchase {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId String  @db.ObjectId
+
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  supplierId String   @db.ObjectId
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId String  @db.ObjectId
+
+  quantity  Int
+  unitPrice Float
+  total     Float
+
+  tax   Tax?    @relation(fields: [taxId], references: [id])
+  taxId String? @db.ObjectId
+
+  taxRate Float @default(0)
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Product {
+  id   String  @id @default(auto()) @map("_id") @db.ObjectId
+  name String?
+  sku  String?
+
+  unit   Unit?   @relation(fields: [unitId], references: [id])
+  unitId String? @db.ObjectId
+
+  unitValue Float @default(0)
+
+  brand   Brand?  @relation(fields: [brandId], references: [id])
+  brandId String? @db.ObjectId
+
+  category   Category? @relation(fields: [categoryId], references: [id])
+  categoryId String?   @db.ObjectId
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  tax   Tax?    @relation(fields: [taxId], references: [id])
+  taxId String? @db.ObjectId
+
+  taxRate Float @default(0)
+
+  alertQuantity Int? @default(0)
+
+  description String?
+
+  image String?
+
+  stock Int @default(0)
+
+  profitMargin Float
+
+  purchasePrice Float
+
+  sellingPriceIncTax Float
+
+  sellingPriceExcTax Float
+
+  purchases Purchase[]
+
+  sales Sale[]
+
+  rackNo String?
+  row    String?
+  column String?
+
+  status Boolean @default(true)
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Invoice {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  refNo String?
+
+  // sale / purchase
+  type String?
+
+  // sale / pos
+  saleType String? @default("sale")
+
+  // cash / card / credit / cheque
+  paymentMethod String @default("cash")
+
+  user   User? @relation(fields: [userId], references: [id])
+  userId String?   @db.ObjectId
+
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+  supplierId String?   @db.ObjectId
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  totalAmount Float
+  paid        Float
+  due         Float
+
+  sales Sale[]
+
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerId String?   @db.ObjectId
+
+  purchases Purchase[]
+
+  note String?
+
+  status Boolean @default(false)
+
+  invoiceData DateTime? @default(now())
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Tax {
+  id   String  @id @default(auto()) @map("_id") @db.ObjectId
+  name String?
+  rate Float   @default(0)
+
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  products Product[]
+
+  purchases Purchase[]
+  sales     Sale[]
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Expense {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String   @db.ObjectId
+
+  type   String?
+  note   String?
+  amount Float?
+
+  expenseDate DateTime? @default(now())
+  createdAt   DateTime? @default(now())
+  updatedAt   DateTime? @updatedAt
+}
