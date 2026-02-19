@@ -1,71 +1,50 @@
+const express = require('express');
 const next = require('next');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
+const cors = require('cors');
+const { PrismaClient } = require('@prisma/client');
 
 const dev = process.env.NODE_ENV !== 'production';
 const nextApp = next({ dev, dir: '../' });
 const handle = nextApp.getRequestHandler();
 
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
-const cors = require('cors');
-const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+const app = express();
 
-var app = express();
+nextApp.prepare().then(() => {
 
-// view engine setup
+  // ===== MIDDLEWARE =====
 
+  app.use(cors({
+    origin: [
+      'http://localhost:3000',
+      'https://tech-oak.vercel.app',
+      'https://tech-oak.com',
+    ],
+    credentials: true,
+  }));
 
-app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://tech-oak.vercel.app',
-    'https://tech-oak.com',
-  ],
-  credentials: true,
-}))
+  app.use(logger('dev'));
+  app.use(express.json({ limit: '5mb' }));
+  app.use(express.urlencoded({ extended: true }));
+  app.use(cookieParser());
+  app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(logger('dev'));
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({
-  extended: true,
-  // limit: '5mb'
-}));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+  app.use((req, res, nextMiddleware) => {
+    req.prisma = prisma;
+    nextMiddleware();
+  });
 
-const prisma = new PrismaClient()
+  // ===== API ROUTES =====
+  require('./routes/index')(app);
 
-app.use(function (req, res, next) {
-  req.prisma = prisma
-  next()
-})
+  // ===== NEXT HANDLER =====
+  app.all('*', (req, res) => {
+    return handle(req, res);
+  });
 
-app.use(async (req, res, nextMiddleware) => {
-  if (req.url.startsWith('/auth') || req.url.startsWith('/user')) {
-    return nextMiddleware();
-  }
-  return handle(req, res);
-});
-
-// Routes
-require('./routes/index')(app);
-
-// catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  next(createError(404));
-});
-
-// error handler
-app.use(function (err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
-
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
 });
 
 module.exports = app;
